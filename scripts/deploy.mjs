@@ -3,6 +3,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { join } from "node:path";
 import {
   ROOT,
+  checkMinerBinary,
   formatPreflightResult,
   getEquiumConfig,
   loadEnvFile,
@@ -42,11 +43,17 @@ function ensureKeypair() {
 
 function ensureMiner() {
   const { bin } = getEquiumConfig();
-  if (existsSync(bin)) {
-    log(`Miner already exists: ${bin}`);
+  const failures = [];
+  if (existsSync(bin) && checkMinerBinary(bin, failures)) {
+    log(`Miner already exists and matches this machine: ${bin}`);
     return;
   }
-  log("Miner binary is missing. Running npm run equium:setup now.");
+  if (failures.length) {
+    log(`Miner binary needs rebuild: ${failures[0]}`);
+  } else {
+    log("Miner binary is missing.");
+  }
+  log("Running npm run equium:setup now.");
   run("bash", ["scripts/equium-setup.sh"]);
 }
 

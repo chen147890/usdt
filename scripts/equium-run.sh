@@ -5,10 +5,18 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${ROOT}/.env"
 
 if [ -f "$ENV_FILE" ]; then
-  set -a
-  # shellcheck disable=SC1090
-  source "$ENV_FILE"
-  set +a
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="$(printf '%s' "$line" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+    case "$line" in
+      ""|\#*) continue ;;
+    esac
+    if printf '%s\n' "$line" | grep -Eq '^[A-Za-z_][A-Za-z0-9_]*='; then
+      key="${line%%=*}"
+      value="${line#*=}"
+      value="$(printf '%s' "$value" | sed -E 's/^['\''"]//; s/['\''"]$//')"
+      export "$key=$value"
+    fi
+  done < "$ENV_FILE"
 fi
 
 BIN="${EQUIUM_MINER_BIN:-${ROOT}/runtime/bin/equium-miner}"

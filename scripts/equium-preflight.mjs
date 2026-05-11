@@ -196,18 +196,32 @@ async function rpcCall(rpcUrl, method, params = [], timeoutMs = 10000) {
   }
 }
 
-function checkExecutable(path, failures) {
+export function checkMinerBinary(path, failures = []) {
   if (!existsSync(path)) {
     failures.push(`miner binary is missing: ${path}. Run: npm run equium:setup`);
     return false;
   }
   try {
     accessSync(path, constants.X_OK);
-    return true;
   } catch {
     failures.push(`miner binary is not executable: ${path}`);
     return false;
   }
+  const result = spawnSync(path, ["--version"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    timeout: 5000
+  });
+  if (result.error) {
+    failures.push(`miner binary cannot run on this machine: ${result.error.message}. Run: npm run equium:setup`);
+    return false;
+  }
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || "").trim();
+    failures.push(`miner binary failed its runtime check${detail ? `: ${detail}` : ""}. Run: npm run equium:setup`);
+    return false;
+  }
+  return true;
 }
 
 export async function runPreflight() {
@@ -225,7 +239,7 @@ export async function runPreflight() {
     failures
   };
 
-  checkExecutable(config.bin, failures);
+  checkMinerBinary(config.bin, failures);
 
   if (!existsSync(config.keypair)) {
     failures.push(`Solana keypair is missing: ${config.keypair}`);
