@@ -42,7 +42,7 @@ function renderCommands(plan = config?.equium) {
       plan.setup,
       "# 预检 RPC、矿工文件、钱包地址、钱包 SOL 余额",
       plan.preflight,
-      `# 常驻等待，到 ${plan.startTime} 后自动挖矿`,
+      `# 常驻等待，到 ${plan.timeZone} ${plan.startTime} 后自动挖矿`,
       plan.scheduledRun,
       "# 后台部署：启动、看日志、停止",
       plan.daemon,

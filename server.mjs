@@ -209,6 +209,7 @@ function equiumPlan() {
   const maxBlocks = process.env.EQUIUM_MAX_BLOCKS || "0";
   const maxNonces = process.env.EQUIUM_MAX_NONCES_PER_ROUND || "4096";
   const startTime = process.env.EQUIUM_START_TIME || "03:00";
+  const timeZone = process.env.EQUIUM_TIMEZONE || "Asia/Shanghai";
   return {
     deploy: "npm run deploy",
     setup: "npm run equium:setup",
@@ -230,6 +231,7 @@ function equiumPlan() {
     rpcUrl: safeRpcUrl,
     keypair,
     startTime,
+    timeZone,
     maxBlocks,
     maxNonces
   };

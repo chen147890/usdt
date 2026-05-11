@@ -9,6 +9,7 @@ import {
 } from "./equium-preflight.mjs";
 
 const DEFAULT_START_TIME = "03:00";
+const DEFAULT_TIMEZONE = "Asia/Shanghai";
 const DEFAULT_PREFLIGHT_INTERVAL_SECONDS = 300;
 const DEFAULT_START_RETRY_SECONDS = 30;
 
@@ -41,11 +42,96 @@ function parseStartTime(value) {
   return { hours, minutes, seconds };
 }
 
-function startTargetFromNow(startTime, now = new Date()) {
+function validateTimeZone(timeZone) {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone }).format(new Date());
+    return timeZone;
+  } catch {
+    throw new Error(`Invalid EQUIUM_TIMEZONE: ${timeZone}. Use an IANA timezone, for example Asia/Shanghai.`);
+  }
+}
+
+function zonedParts(date, timeZone) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+  const parts = Object.fromEntries(
+    formatter.formatToParts(date)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, Number(part.value)])
+  );
+  return {
+    year: parts.year,
+    month: parts.month,
+    day: parts.day,
+    hours: parts.hour,
+    minutes: parts.minute,
+    seconds: parts.second
+  };
+}
+
+function zonedDateToInstant(parts, timeZone) {
+  const wanted = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hours,
+    parts.minutes,
+    parts.seconds,
+    0
+  );
+  let instant = new Date(wanted);
+  for (let index = 0; index < 3; index += 1) {
+    const actual = zonedParts(instant, timeZone);
+    const actualAsUtc = Date.UTC(
+      actual.year,
+      actual.month - 1,
+      actual.day,
+      actual.hours,
+      actual.minutes,
+      actual.seconds,
+      0
+    );
+    const delta = wanted - actualAsUtc;
+    if (delta === 0) break;
+    instant = new Date(instant.getTime() + delta);
+  }
+  return instant;
+}
+
+function formatInTimeZone(date, timeZone) {
+  return new Intl.DateTimeFormat("zh-CN", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZoneName: "short"
+  }).format(date);
+}
+
+function startTargetFromNow(startTime, timeZone, now = new Date()) {
   const parsed = parseStartTime(startTime);
   if (!parsed) return null;
-  const target = new Date(now);
-  target.setHours(parsed.hours, parsed.minutes, parsed.seconds, 0);
+  const current = zonedParts(now, timeZone);
+  const target = zonedDateToInstant({
+    year: current.year,
+    month: current.month,
+    day: current.day,
+    hours: parsed.hours,
+    minutes: parsed.minutes,
+    seconds: parsed.seconds
+  }, timeZone);
   return target.getTime() <= now.getTime() ? null : target;
 }
 
@@ -75,13 +161,13 @@ async function checkOnce(label) {
   }
 }
 
-async function waitUntilStartTime(target, intervalMs) {
+async function waitUntilStartTime(target, intervalMs, timeZone) {
   if (!target) {
-    log("Start time has already arrived or EQUIUM_START_TIME=now. Mining will start after final preflight.");
+    log(`Start time has already arrived in ${timeZone}, or EQUIUM_START_TIME=now. Mining will start after final preflight.`);
     return;
   }
 
-  log(`Waiting for mining start time: ${target.toLocaleString()}`);
+  log(`Waiting for mining start time: ${formatInTimeZone(target, timeZone)} (${timeZone}).`);
   while (Date.now() < target.getTime()) {
     await checkOnce("Preflight");
     const remaining = target.getTime() - Date.now();
@@ -137,7 +223,8 @@ try {
 }
 
 const startTime = process.env.EQUIUM_START_TIME || DEFAULT_START_TIME;
-const target = startTargetFromNow(startTime);
+const timeZone = validateTimeZone(process.env.EQUIUM_TIMEZONE || DEFAULT_TIMEZONE);
+const target = startTargetFromNow(startTime, timeZone);
 const preflightIntervalMs = secondsFromEnv(
   "EQUIUM_PREFLIGHT_INTERVAL_SECONDS",
   DEFAULT_PREFLIGHT_INTERVAL_SECONDS
@@ -147,7 +234,7 @@ const startRetryMs = secondsFromEnv(
   DEFAULT_START_RETRY_SECONDS
 ) * 1000;
 
-log(`Equium scheduler is running. Start time: ${startTime}.`);
-await waitUntilStartTime(target, preflightIntervalMs);
+log(`Equium scheduler is running. Current time: ${formatInTimeZone(new Date(), timeZone)}. Start time: ${startTime} (${timeZone}).`);
+await waitUntilStartTime(target, preflightIntervalMs, timeZone);
 await finalPreflightLoop(startRetryMs);
 startMiner();
