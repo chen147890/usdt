@@ -1,0 +1,14 @@
+{
+  "name": "universal-pow-miner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "mac": "bash scripts/start-mac.sh",
+    "ubuntu": "bash scripts/start-ubuntu.sh",
+    "equium:setup": "bash scripts/equium-setup.sh",
+    "equium:run": "bash scripts/equium-run.sh",
+    "check": "node --check server.mjs && node --check profiles.mjs && node --check public/app.js"
+  }
+}

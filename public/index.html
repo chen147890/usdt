@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Universal PoW Miner</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="header">
+        <div>
+          <p class="eyebrow">Universal PoW Miner</p>
+          <h1>输入项目网址，自动判断挖矿路径</h1>
+        </div>
+        <span id="status" class="badge">Ready</span>
+      </section>
+
+      <section class="panel">
+        <div class="controls">
+          <label class="wide">
+            项目网址
+            <input id="projectUrl" placeholder="https://www.equium.xyz/" />
+          </label>
+          <label>
+            已知 Profile
+            <select id="profileSelect"></select>
+          </label>
+          <label>
+            推荐线程
+            <input id="threads" readonly />
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="discoverBtn">识别项目</button>
+          <button id="equiumPlanBtn">Equium 运行方案</button>
+        </div>
+
+        <div id="warning" class="warning" hidden></div>
+      </section>
+
+      <section class="stats">
+        <div><dt>Profile</dt><dd id="profileName">-</dd></div>
+        <div><dt>类型</dt><dd id="profileType">-</dd></div>
+        <div><dt>算法</dt><dd id="algorithm">-</dd></div>
+        <div><dt>执行路径</dt><dd id="engine">-</dd></div>
+        <div><dt>程序/合约</dt><dd id="target">-</dd></div>
+        <div><dt>系统</dt><dd id="system">-</dd></div>
+      </section>
+
+      <section class="panel">
+        <h2>运行命令</h2>
+        <pre id="commands">等待识别。</pre>
+      </section>
+
+      <section class="panel">
+        <h2>识别日志</h2>
+        <pre id="log"></pre>
+      </section>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
