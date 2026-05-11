@@ -9,6 +9,17 @@ import { defaultProfileId, getProfile, getProfileForUrl, listProfiles } from "./
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const PUBLIC = join(ROOT, "public");
 
+function expandEnv(value) {
+  if (!value) return value;
+  const expanded = value.replace(/\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?/g, (_match, key) => {
+    if (key === "HOME") return process.env.HOME || os.homedir();
+    return process.env[key] ?? "";
+  });
+  if (expanded === "~") return os.homedir();
+  if (expanded.startsWith("~/")) return join(os.homedir(), expanded.slice(2));
+  return expanded;
+}
+
 function loadEnvFile() {
   const path = join(ROOT, ".env");
   if (!existsSync(path)) return;
@@ -19,7 +30,7 @@ function loadEnvFile() {
     const index = trimmed.indexOf("=");
     if (index === -1) continue;
     const key = trimmed.slice(0, index).trim();
-    const value = trimmed.slice(index + 1).trim().replace(/^['"]|['"]$/g, "");
+    const value = expandEnv(trimmed.slice(index + 1).trim().replace(/^['"]|['"]$/g, ""));
     if (key && process.env[key] === undefined) process.env[key] = value;
   }
 }
@@ -47,6 +58,18 @@ function json(res, status, body) {
 
 function unique(values) {
   return [...new Set(values.filter(Boolean))];
+}
+
+function redactUrl(rawUrl) {
+  try {
+    const url = new URL(rawUrl);
+    for (const key of ["api-key", "apikey", "key", "token"]) {
+      if (url.searchParams.has(key)) url.searchParams.set(key, "REDACTED");
+    }
+    return url.toString();
+  } catch {
+    return String(rawUrl).replace(/((?:api-key|apikey|key|token)=)[^&\s]+/gi, "$1REDACTED");
+  }
 }
 
 function systemInfo() {
@@ -181,23 +204,32 @@ function equiumPlan() {
     ? Number(process.env.EQUIUM_THREADS)
     : info.recommended.equiumThreads;
   const rpcUrl = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
-  const keypair = process.env.SOLANA_KEYPAIR || "$HOME/.config/solana/id.json";
+  const safeRpcUrl = redactUrl(rpcUrl);
+  const keypair = process.env.SOLANA_KEYPAIR || "runtime/keypairs/equium-id.json";
   const maxBlocks = process.env.EQUIUM_MAX_BLOCKS || "0";
   const maxNonces = process.env.EQUIUM_MAX_NONCES_PER_ROUND || "4096";
+  const startTime = process.env.EQUIUM_START_TIME || "03:00";
   return {
+    deploy: "npm run deploy",
     setup: "npm run equium:setup",
+    preflight: "npm run equium:preflight",
+    scheduledRun: "npm run mine",
+    daemon: "npm run mine:daemon",
+    logs: "npm run mine:logs",
+    stop: "npm run mine:stop",
     run: "npm run equium:run",
     rawCommand: [
       "runtime/bin/equium-miner",
-      `--rpc-url '${rpcUrl}'`,
+      `--rpc-url '${safeRpcUrl}'`,
       `--keypair '${keypair}'`,
       `--threads ${threads}`,
       `--max-nonces-per-round ${maxNonces}`,
       maxBlocks !== "0" ? `--max-blocks ${maxBlocks}` : ""
     ].filter(Boolean).join(" "),
     threads,
-    rpcUrl,
+    rpcUrl: safeRpcUrl,
     keypair,
+    startTime,
     maxBlocks,
     maxNonces
   };

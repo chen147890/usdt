@@ -13,9 +13,14 @@ fi
 
 BIN="${EQUIUM_MINER_BIN:-${ROOT}/runtime/bin/equium-miner}"
 RPC_URL="${SOLANA_RPC_URL:-https://api.mainnet-beta.solana.com}"
-KEYPAIR="${SOLANA_KEYPAIR:-${HOME}/.config/solana/id.json}"
+KEYPAIR="${SOLANA_KEYPAIR:-runtime/keypairs/equium-id.json}"
 MAX_BLOCKS="${EQUIUM_MAX_BLOCKS:-0}"
 MAX_NONCES="${EQUIUM_MAX_NONCES_PER_ROUND:-4096}"
+
+case "$KEYPAIR" in
+  /*) ;;
+  *) KEYPAIR="${ROOT}/${KEYPAIR}" ;;
+esac
 
 logical_cores() {
   if command -v nproc >/dev/null 2>&1; then

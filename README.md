@@ -57,13 +57,44 @@ npm run equium:setup
 
 ```sh
 SOLANA_RPC_URL=https://mainnet.helius-rpc.com/?api-key=YOUR_KEY
-SOLANA_KEYPAIR=$HOME/.config/solana/id.json
+SOLANA_KEYPAIR=runtime/keypairs/equium-id.json
+# 也可以填 64-byte Solana 私钥，支持 base58 或无空格 JSON 数组：
+# SOLANA_PRIVATE_KEY=
 EQUIUM_THREADS=auto
 EQUIUM_MAX_BLOCKS=0
 EQUIUM_MAX_NONCES_PER_ROUND=4096
+EQUIUM_START_TIME=03:00
+EQUIUM_PREFLIGHT_INTERVAL_SECONDS=300
+EQUIUM_START_RETRY_SECONDS=30
+EQUIUM_MIN_SOL_BALANCE=0.002
 ```
 
-开始挖：
+最简单部署只需要一条命令：
+
+```sh
+npm run deploy
+```
+
+这条命令会自动完成：
+
+- 缺 `.env` 时复制 `.env.example`。
+- 缺矿工二进制时执行 `equium:setup`。
+- 如果填写了 `SOLANA_PRIVATE_KEY`，自动生成本地 keypair JSON。
+- 预检 RPC、钱包地址、SOL 余额。
+- 后台启动常驻任务，到 `EQUIUM_START_TIME` 自动开挖。
+- 直接打开日志。
+
+备用命令：
+
+```sh
+npm run equium:preflight
+npm run mine
+npm run mine:daemon
+npm run mine:logs
+npm run mine:stop
+```
+
+如果要绕过 3 点等待，立即挖：
 
 ```sh
 npm run equium:run
@@ -80,10 +111,11 @@ npm run equium:run
 Equium 是 Solana 项目，CLI 使用 Solana keypair JSON 文件。钱包需要少量 SOL 支付交易费用。没有 keypair 时可用：
 
 ```sh
-solana-keygen new -o "$HOME/.config/solana/id.json"
+mkdir -p runtime/keypairs
+solana-keygen new -o runtime/keypairs/equium-id.json
 ```
 
-不要用主钱包。建议新建专用挖矿钱包，只放少量 SOL。
+也可以把私钥填到 `SOLANA_PRIVATE_KEY`，`npm run deploy` 会自动生成本地 keypair 文件。不要用主钱包。建议新建专用挖矿钱包，只放少量 SOL。
 
 ## 验证
 
@@ -100,5 +132,9 @@ universal-pow-miner/
   public/                   # 本地网页控制台
   scripts/equium-setup.sh   # 拉取并编译官方 Equium CLI miner
   scripts/equium-run.sh     # Mac/Ubuntu 自动线程数启动 Equium miner
+  scripts/equium-preflight.mjs
+  scripts/equium-scheduler.mjs
+  scripts/deploy.mjs
+  scripts/mine-daemon.sh
   runtime/                  # 本地编译产物和源码缓存
 ```

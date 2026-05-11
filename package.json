@@ -7,8 +7,17 @@
     "start": "node server.mjs",
     "mac": "bash scripts/start-mac.sh",
     "ubuntu": "bash scripts/start-ubuntu.sh",
+    "deploy": "node scripts/deploy.mjs",
     "equium:setup": "bash scripts/equium-setup.sh",
     "equium:run": "bash scripts/equium-run.sh",
-    "check": "node --check server.mjs && node --check profiles.mjs && node --check public/app.js"
+    "equium:preflight": "node scripts/equium-preflight.mjs",
+    "equium:schedule": "node scripts/equium-scheduler.mjs",
+    "mine": "node scripts/equium-scheduler.mjs",
+    "mine:3": "EQUIUM_START_TIME=03:00 node scripts/equium-scheduler.mjs",
+    "mine:daemon": "bash scripts/mine-daemon.sh start",
+    "mine:stop": "bash scripts/mine-daemon.sh stop",
+    "mine:status": "bash scripts/mine-daemon.sh status",
+    "mine:logs": "bash scripts/mine-daemon.sh logs",
+    "check": "node --check server.mjs && node --check profiles.mjs && node --check public/app.js && node --check scripts/equium-preflight.mjs && node --check scripts/equium-scheduler.mjs && node --check scripts/deploy.mjs"
   }
 }

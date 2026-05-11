@@ -34,13 +34,25 @@ function renderCommands(plan = config?.equium) {
   }
   if (activeProfile.id === "equium") {
     $("commands").textContent = [
+      "# 最简单部署：自动编译、预检、后台等 3 点、打开日志",
+      plan.deploy,
+      "",
+      "# 备用命令",
       "# 第一次：拉取并编译官方 Equium Rust CLI miner",
       plan.setup,
+      "# 预检 RPC、矿工文件、钱包地址、钱包 SOL 余额",
+      plan.preflight,
+      `# 常驻等待，到 ${plan.startTime} 后自动挖矿`,
+      plan.scheduledRun,
+      "# 后台部署：启动、看日志、停止",
+      plan.daemon,
+      plan.logs,
+      plan.stop,
       "",
-      "# 开始挖矿。会自动按 Mac/Ubuntu CPU 和内存选择线程数",
+      "# 立即挖矿。会自动按 Mac/Ubuntu CPU 和内存选择线程数",
       plan.run,
       "",
-      "# 实际底层命令",
+      "# 实际底层命令，RPC 已脱敏展示",
       plan.rawCommand
     ].join("\n");
     return;
