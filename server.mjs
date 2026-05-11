@@ -210,6 +210,7 @@ function equiumPlan() {
   const maxNonces = process.env.EQUIUM_MAX_NONCES_PER_ROUND || "4096";
   const startTime = process.env.EQUIUM_START_TIME || "03:00";
   const timeZone = process.env.EQUIUM_TIMEZONE || "Asia/Shanghai";
+  const minerRestartSeconds = process.env.EQUIUM_MINER_RESTART_SECONDS || "60";
   return {
     deploy: "npm run deploy",
     setup: "npm run equium:setup",
@@ -232,6 +233,7 @@ function equiumPlan() {
     keypair,
     startTime,
     timeZone,
+    minerRestartSeconds,
     maxBlocks,
     maxNonces
   };

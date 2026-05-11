@@ -85,5 +85,6 @@ loadEnvFile();
 ensureKeypair();
 ensureMiner();
 await ensurePreflight();
+process.env.EQUIUM_SKIP_STARTUP_PREFLIGHT = "1";
 startDaemon();
 followLogs();

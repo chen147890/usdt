@@ -65,8 +65,8 @@ EQUIUM_MAX_BLOCKS=0
 EQUIUM_MAX_NONCES_PER_ROUND=4096
 EQUIUM_START_TIME=03:00
 EQUIUM_TIMEZONE=Asia/Shanghai
-EQUIUM_PREFLIGHT_INTERVAL_SECONDS=300
-EQUIUM_START_RETRY_SECONDS=30
+EQUIUM_WAIT_LOG_INTERVAL_SECONDS=300
+EQUIUM_MINER_RESTART_SECONDS=60
 EQUIUM_MIN_SOL_BALANCE=0.002
 ```
 
@@ -81,8 +81,9 @@ npm run deploy
 - 缺 `.env` 时复制 `.env.example`。
 - 缺矿工二进制时执行 `equium:setup`。
 - 如果填写了 `SOLANA_PRIVATE_KEY`，自动生成本地 keypair JSON。
-- 预检 RPC、钱包地址、SOL 余额。
+- 启动时预检一次 RPC、钱包地址、SOL 余额。
 - 后台启动常驻任务，到 `EQUIUM_TIMEZONE` 时区里的 `EQUIUM_START_TIME` 自动开挖。
+- 如果官方 config/RPC 暂时没恢复导致矿工退出，会每 `EQUIUM_MINER_RESTART_SECONDS` 秒直接重启矿工，不再重复预检。
 - 直接打开日志。
 
 备用命令：

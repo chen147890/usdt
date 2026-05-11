@@ -79,8 +79,12 @@ if [ ! -f "$KEYPAIR" ]; then
   exit 1
 fi
 
+redacted_rpc_url() {
+  printf '%s' "$1" | sed -E 's/([?&](api-key|apikey|key|token)=)[^&[:space:]]+/\1REDACTED/g'
+}
+
 echo "Equium miner"
-echo "  RPC:      $RPC_URL"
+echo "  RPC:      $(redacted_rpc_url "$RPC_URL")"
 echo "  Keypair:  $KEYPAIR"
 echo "  Threads:  $THREADS"
 echo "  Nonces:   $MAX_NONCES per thread per round"

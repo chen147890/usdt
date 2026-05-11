@@ -34,7 +34,7 @@ function renderCommands(plan = config?.equium) {
   }
   if (activeProfile.id === "equium") {
     $("commands").textContent = [
-      "# 最简单部署：自动编译、预检、后台等 3 点、打开日志",
+      "# 最简单部署：启动时预检一次，后台等 3 点，异常退出自动重启",
       plan.deploy,
       "",
       "# 备用命令",
@@ -44,6 +44,7 @@ function renderCommands(plan = config?.equium) {
       plan.preflight,
       `# 常驻等待，到 ${plan.timeZone} ${plan.startTime} 后自动挖矿`,
       plan.scheduledRun,
+      `# 矿工退出后每 ${plan.minerRestartSeconds} 秒重启，不再重复预检`,
       "# 后台部署：启动、看日志、停止",
       plan.daemon,
       plan.logs,

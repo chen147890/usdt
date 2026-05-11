@@ -10,10 +10,11 @@ import {
 
 const DEFAULT_START_TIME = "03:00";
 const DEFAULT_TIMEZONE = "Asia/Shanghai";
-const DEFAULT_PREFLIGHT_INTERVAL_SECONDS = 300;
-const DEFAULT_START_RETRY_SECONDS = 30;
+const DEFAULT_WAIT_LOG_INTERVAL_SECONDS = 300;
+const DEFAULT_MINER_RESTART_SECONDS = 60;
 
 let minerProcess = null;
+let shuttingDown = false;
 
 function log(message) {
   console.log(`[${new Date().toLocaleString()}] ${message}`);
@@ -163,48 +164,63 @@ async function checkOnce(label) {
 
 async function waitUntilStartTime(target, intervalMs, timeZone) {
   if (!target) {
-    log(`Start time has already arrived in ${timeZone}, or EQUIUM_START_TIME=now. Mining will start after final preflight.`);
+    log(`Start time has already arrived in ${timeZone}, or EQUIUM_START_TIME=now. Mining will start now.`);
     return;
   }
 
   log(`Waiting for mining start time: ${formatInTimeZone(target, timeZone)} (${timeZone}).`);
   while (Date.now() < target.getTime()) {
-    await checkOnce("Preflight");
     const remaining = target.getTime() - Date.now();
     if (remaining <= 0) break;
     const waitMs = Math.min(intervalMs, remaining);
-    log(`Next check in ${formatDuration(waitMs)}. Remaining until start: ${formatDuration(remaining)}.`);
+    log(`Next wait log in ${formatDuration(waitMs)}. Remaining until start: ${formatDuration(remaining)}.`);
     await sleep(waitMs);
   }
 }
 
-async function finalPreflightLoop(retryMs) {
-  let attempt = 1;
-  while (true) {
-    const ok = await checkOnce(`Final preflight #${attempt}`);
-    if (ok) return;
-    log(`Start time reached, but checks are not clean. Retrying in ${formatDuration(retryMs)}.`);
-    attempt += 1;
-    await sleep(retryMs);
+async function startupPreflight() {
+  if (process.env.EQUIUM_SKIP_STARTUP_PREFLIGHT === "1") {
+    log("Startup preflight skipped because deploy already completed it.");
+    return;
+  }
+  const ok = await checkOnce("Startup preflight");
+  if (!ok) {
+    log("Startup preflight failed. Fix the config and run npm run deploy again.");
+    process.exit(1);
   }
 }
 
-function startMiner() {
+function startMinerOnce() {
   const runner = join(ROOT, "scripts/equium-run.sh");
   log("Starting Equium miner now.");
-  minerProcess = spawn("bash", [runner], {
-    cwd: ROOT,
-    env: process.env,
-    stdio: "inherit"
-  });
-  minerProcess.on("exit", (code, signal) => {
-    if (signal) log(`Miner stopped by signal ${signal}.`);
-    else log(`Miner exited with code ${code}.`);
-    process.exit(code ?? 1);
+  return new Promise((resolve) => {
+    minerProcess = spawn("bash", [runner], {
+      cwd: ROOT,
+      env: process.env,
+      stdio: "inherit"
+    });
+    minerProcess.on("exit", (code, signal) => {
+      minerProcess = null;
+      if (signal) log(`Miner stopped by signal ${signal}.`);
+      else log(`Miner exited with code ${code}.`);
+      resolve({ code, signal });
+    });
   });
 }
 
+async function minerLoop(minerRestartMs) {
+  let restartCount = 0;
+  while (!shuttingDown) {
+    const result = await startMinerOnce();
+    if (shuttingDown || result.signal) break;
+    restartCount += 1;
+    log(`Miner is not running. Restart attempt #${restartCount} in ${formatDuration(minerRestartMs)} without another preflight.`);
+    await sleep(minerRestartMs);
+  }
+}
+
 function stopMiner(signal) {
+  shuttingDown = true;
   log(`Received ${signal}; stopping scheduler.`);
   if (minerProcess && !minerProcess.killed) minerProcess.kill(signal);
   else process.exit(signal === "SIGINT" ? 130 : 143);
@@ -225,16 +241,16 @@ try {
 const startTime = process.env.EQUIUM_START_TIME || DEFAULT_START_TIME;
 const timeZone = validateTimeZone(process.env.EQUIUM_TIMEZONE || DEFAULT_TIMEZONE);
 const target = startTargetFromNow(startTime, timeZone);
-const preflightIntervalMs = secondsFromEnv(
-  "EQUIUM_PREFLIGHT_INTERVAL_SECONDS",
-  DEFAULT_PREFLIGHT_INTERVAL_SECONDS
+const waitLogIntervalMs = secondsFromEnv(
+  "EQUIUM_WAIT_LOG_INTERVAL_SECONDS",
+  Number(process.env.EQUIUM_PREFLIGHT_INTERVAL_SECONDS || DEFAULT_WAIT_LOG_INTERVAL_SECONDS)
 ) * 1000;
-const startRetryMs = secondsFromEnv(
-  "EQUIUM_START_RETRY_SECONDS",
-  DEFAULT_START_RETRY_SECONDS
+const minerRestartMs = secondsFromEnv(
+  "EQUIUM_MINER_RESTART_SECONDS",
+  DEFAULT_MINER_RESTART_SECONDS
 ) * 1000;
 
 log(`Equium scheduler is running. Current time: ${formatInTimeZone(new Date(), timeZone)}. Start time: ${startTime} (${timeZone}).`);
-await waitUntilStartTime(target, preflightIntervalMs, timeZone);
-await finalPreflightLoop(startRetryMs);
-startMiner();
+await startupPreflight();
+await waitUntilStartTime(target, waitLogIntervalMs, timeZone);
+await minerLoop(minerRestartMs);
